@@ -20,19 +20,17 @@ The current idea is to store paths of often used files and directories in a data
 
 The result will be quite similar to something like [zoxide](https://github.com/ajeetdsouza/zoxide).
 
+There is another video i found about [tag studio](https://www.youtube.com/watch?v=wTQeMkYRMcw&t=3s), which has some ideas about sub tags that might be cool to look at later.
+
 ## working
 
 ### the script itself
-Writen in ruby.
-The script is currently split in 2 parts, a database part and a command part.
-the database part uses sqlite3.
+Written in rust, not because its the best choice, but because i wanted to learn rust.
 
 ### the extra part
 Because we cant change the current shells directory from the script we need to be a little creative.
 
-The script stores the command that should be run and returns it when called with the option 'getCommand'.
-
-However this is kind of scary, if somehow my script returns `rm -rf ~` we are fucked so if possible i would like to find another solution.
+This is solved by just calling `cd` on the result of the `getfile` option.
 
 This is the function i added to my fish config
 ```
@@ -42,10 +40,4 @@ function tf
 end
 ```
 
-
-In bash the same would work by pasting this in .bashrc
-```
-tf () { /home/caspian/Projects/cli/TaggedFiles/taggedFiles.rb $@
-    eval $(/home/caspian/Projects/cli/TaggedFiles/taggedFiles.rb --getCommand)
-}
-```
+You will have to write an equivalent in bash yourself for now. Ill add an example here if someone shares one with me.
