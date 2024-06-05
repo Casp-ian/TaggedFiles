@@ -35,8 +35,18 @@ This is solved by just calling `cd` on the result of the `getfile` option.
 This is the function i added to my fish config
 ```
 function tf
-  /home/caspian/Projects/cli/TaggedFiles/taggedFiles.rb $argv
-  eval (/home/caspian/Projects/cli/TaggedFiles/taggedFiles.rb --getCommand)
+    # If tf is called with one of these options it will call the option as a command with the result of get
+    set allowedCommands cd hx
+    if contains -- $argv[1] $allowedCommands
+        # Call only if result is a file, if there is no result or get is canceled $file will be empty
+        set file (~/data/Projects/cli/TaggedFiles/target/release/TaggedFiles get $argv[2..-1])
+        if test -e $file
+            $argv[1] $file
+        end
+    else
+        # Try to call taggedFiles with original arguments to return to normal behaviour
+        ~/data/Projects/cli/TaggedFiles/target/release/TaggedFiles $argv[1..-1]
+    end
 end
 ```
 
