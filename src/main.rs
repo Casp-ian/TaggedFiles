@@ -30,12 +30,11 @@ pub fn main() -> ExitCode {
             println!("done");
         }
         SubCommands::Getfile { tags } => {
-            let config = unwrapOrFailure!(read_config());
+            // let config = unwrapOrFailure!(read_config());
 
-            println!("{:?}", tags);
-            // let files = getFilesByTags(tags);
-            // let file = chooseSpecificFile(files);
-            // println!("{}", file)
+            // println!("{:?}", tags);
+
+            println!("/home/caspar/tagged");
         }
         SubCommands::Addfile { file_path, option } => {
             todo!();
