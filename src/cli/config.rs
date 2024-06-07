@@ -3,6 +3,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use toml::Table;
 
+#[derive(Clone)]
 pub struct Config {
     pub directory: PathBuf,
 }
