@@ -25,7 +25,7 @@ There is another video i found about [tag studio](https://www.youtube.com/watch?
 ## working
 
 ### the script itself
-Written in rust, not because its the best choice, but because i wanted to learn rust.
+Written in rust, not because its the best choice, but because i wanted to learn rust. (and ruby was a little too slow)
 
 ### the extra part
 Because we cant change the current shells directory from the script we need to be a little creative.
@@ -53,4 +53,4 @@ function tf
 end
 ```
 
-You will have to write an equivalent in bash yourself for now. Ill add an example here if someone shares one with me.
+You will have to write an equivalent in bash yourself for now. I will add an example here if someone shares one with me.

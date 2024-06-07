@@ -19,6 +19,10 @@ pub enum SubCommands {
         directory_path: PathBuf,
     },
 
+    Listfiles,
+
+    Listtags,
+
     /// search file based on tags and opens a prompt if multiple files match, prints absolute path to stdout
     Getfile {
         /// tags to search on, if none given will return all files
@@ -28,7 +32,6 @@ pub enum SubCommands {
     /// add a new file to the tagged files
     Addfile {
         /// path of the file to add
-        #[arg(short, long)]
         file_path: PathBuf,
 
         /// how the file will be added to the tagged files
@@ -46,11 +49,11 @@ pub enum SubCommands {
 
     /// assign a tag to a file
     Assign {
-        /// file that a tag should be assigned to
-        file: String,
-
         /// tag to be assigned to the file
         tag: String,
+
+        /// file that a tag should be assigned to
+        file: String,
     },
 
     /// remove a file
@@ -69,11 +72,11 @@ pub enum SubCommands {
 
     /// unasign a tag from a file
     Unassign {
-        /// file that should be unnasigned to the tag
-        file: String,
-
         /// tag that should be unnasigned to the file
         tag: String,
+
+        /// file that should be unnasigned to the tag
+        file: String,
     },
 }
 

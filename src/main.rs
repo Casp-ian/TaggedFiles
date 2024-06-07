@@ -10,12 +10,13 @@ use crate::tags::storage::*;
 
 macro_rules! unwrapOrFailure {
     ($statement:expr) => {{
-        if let Err(e) = $statement {
+        let s = $statement;
+        if let Err(e) = s {
             // TODO, this currently results in errors mixed from the sqlite library, and my own written error strings
             eprintln!("{}", e);
             return ExitCode::FAILURE;
         }
-        $statement.unwrap()
+        s.unwrap()
     }};
 }
 
@@ -30,13 +31,32 @@ pub fn main() -> ExitCode {
 
             println!("done");
         }
+        SubCommands::Listfiles {} => {
+            let config = unwrapOrFailure!(read_config());
+
+            let entries = unwrapOrFailure!(list_files(config.clone().directory));
+
+            for entry in entries {
+                eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+            }
+        }
+        SubCommands::Listtags {} => {
+            let config = unwrapOrFailure!(read_config());
+
+            let entries = unwrapOrFailure!(list_tags(config.clone().directory));
+
+            for entry in entries {
+                eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+            }
+        }
         SubCommands::Getfile { tags } => {
             let config = unwrapOrFailure!(read_config());
 
             let files = unwrapOrFailure!(get_files(config.clone().directory, &tags));
 
-            eprintln!("{}", files);
-            println!("/home/caspar/tagged");
+            let file = unwrapOrFailure!(choose_file(files));
+
+            println!("{}", file);
         }
         SubCommands::Addfile { file_path, option } => {
             let config = unwrapOrFailure!(read_config());
@@ -55,16 +75,16 @@ pub fn main() -> ExitCode {
                 unwrapOrFailure!(add_tag(config.clone().directory, &name));
             }
         }
-        SubCommands::Assign { file, tag } => {
+        SubCommands::Assign { tag, file } => {
             let config = unwrapOrFailure!(read_config());
 
-            unwrapOrFailure!(assign(config.clone().directory, &file, &tag));
+            unwrapOrFailure!(assign(config.clone().directory, &tag, &file));
         }
         SubCommands::Removefile { names } => {
             let config = unwrapOrFailure!(read_config());
 
             for name in names {
-                unwrapOrFailure!(delete_tag(config.clone().directory, &name));
+                unwrapOrFailure!(delete_file(config.clone().directory, &name));
             }
         }
         SubCommands::Removetag { names } => {
@@ -74,10 +94,10 @@ pub fn main() -> ExitCode {
                 unwrapOrFailure!(delete_tag(config.clone().directory, &name));
             }
         }
-        SubCommands::Unassign { file, tag } => {
+        SubCommands::Unassign { tag, file } => {
             let config = unwrapOrFailure!(read_config());
 
-            unwrapOrFailure!(unassign(config.clone().directory, &file, &tag));
+            unwrapOrFailure!(unassign(config.clone().directory, &tag, &file));
         }
     }
 
