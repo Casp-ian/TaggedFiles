@@ -2,15 +2,10 @@
 
 ## Todo
 
-- get basic functionality back to the level of the old version
-
-
-- add option te remove connections
-- add option to list tags
-- make it faster (maybe rewrite in other language)
-- order options based on last used
-- make configurable
-- check for files being deleted
+- add option te remove files
+- order files based on last used
+- add special tags (like: link, dir, hidden and image)
+- add subcommand to check for manually added and removed files in directory
 
 ## idea & inspiration
 Original inspiration for this project was a post about [tag based file systems](https://garrit.xyz/posts/2024-04-02-fuck-trees-use-tags).
@@ -25,7 +20,7 @@ There is another video i found about [tag studio](https://www.youtube.com/watch?
 ## working
 
 ### the script itself
-Written in rust, not because its the best choice, but because i wanted to learn rust. (and ruby was a little too slow)
+Written in rust, not because its the best choice, but because i wanted to learn rust. (and ruby was a little slow)
 
 ### the extra part
 Because we cant change the current shells directory from the script we need to be a little creative.
@@ -33,7 +28,7 @@ Because we cant change the current shells directory from the script we need to b
 This is solved by just calling `cd` on the result of the `getfile` option.
 
 This is the function i added to my fish config
-```
+```fish
 function tf
     set command ~/data/Projects/cli/TaggedFiles/target/release/TaggedFiles
 
