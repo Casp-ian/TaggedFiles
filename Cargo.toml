@@ -8,4 +8,5 @@ clap = { version = "4.5.4", features = ["derive"] }
 dirs = "5.0.1"
 inquire = { version = "0.7.5", features = [] }
 rusqlite = "0.31.0"
+symlink = "0.1.0"
 toml = "0.8.13"
