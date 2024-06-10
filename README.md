@@ -38,7 +38,7 @@ function tf
     # Call only if result is a file, if there is no result or get is canceled $file will be empty
     if contains -- $argv[1] $allowedCommands
         set file ($command getfile $argv[2..-1])
-        if test -e $file
+        if test -e "$file"
             $argv[1] $file
         end
     else

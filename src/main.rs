@@ -27,7 +27,7 @@ macro_rules! unwrapOrFailure {
 pub fn main() -> ExitCode {
     // create config if it doesnt exist
     if !config::exists() {
-        eprintln!("config file does not exit. Creating it now");
+        eprintln!("config file does not exist. Creating it now");
         let mut directory_path = dirs::home_dir().unwrap();
         directory_path.push("tagged");
 
@@ -38,7 +38,7 @@ pub fn main() -> ExitCode {
 
     // create db if it doesnt exist
     if !db_exists(config.clone().directory) {
-        eprintln!("Database does not exit. Creating it now");
+        eprintln!("Database does not exist. Creating it now");
         let config = config::read().unwrap();
         unwrapOrFailure!(setup(config.directory));
     }
@@ -63,7 +63,9 @@ pub fn main() -> ExitCode {
 
             let file = unwrapOrFailure!(prompt::choose_file(files));
 
-            println!("{}", file);
+            let mut path = config.directory;
+            path.push(file);
+            println!("{}", path.to_str().unwrap());
         }
         SubCommands::Addfile { file_path, option } => {
             // TODO actually move or the file to the directory based on `option`
