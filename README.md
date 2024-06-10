@@ -2,7 +2,7 @@
 
 ## Todo
 
-- add option te remove files
+- add option to remove files
 - order files based on last used
 - add special tags (like: link, dir, hidden and image)
 - add subcommand to check for manually added and removed files in directory
