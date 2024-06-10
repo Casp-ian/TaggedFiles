@@ -2,6 +2,12 @@ use std::path::PathBuf;
 
 use rusqlite::Connection;
 
+// TODO move the string "info.db" to some better position
+pub fn db_exists(mut path: PathBuf) -> bool {
+    path.push("info.db");
+    path.exists()
+}
+
 // TODO, sql injection risk, pretty much in every method
 fn db(mut path: PathBuf) -> rusqlite::Result<Connection> {
     path.push("info.db");

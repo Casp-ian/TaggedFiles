@@ -13,14 +13,10 @@ struct Cli {
 #[derive(Subcommand)]
 pub enum SubCommands {
     // TODO add value_name to most of these
-    /// initialize the vault for tagged files
-    Init {
-        /// the directory where all tagged files will be stored
-        directory_path: PathBuf,
-    },
-
+    /// list all files and what tags they have
     Listfiles,
 
+    /// list all tags and what files have them
     Listtags,
 
     /// search file based on tags and opens a prompt if multiple files match, prints absolute path to stdout

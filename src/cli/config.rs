@@ -8,7 +8,17 @@ pub struct Config {
     pub directory: PathBuf,
 }
 
-pub fn read_config() -> Result<Config, String> {
+fn config_path() -> PathBuf {
+    let mut config_dir = dirs::config_dir().unwrap();
+    config_dir.push("tagged.toml");
+    config_dir
+}
+
+pub fn exists() -> bool {
+    config_path().exists()
+}
+
+pub fn read() -> Result<Config, String> {
     let file_result = File::open(config_path());
     if file_result.is_err() {
         return Err("Couldnt open file".to_owned());
@@ -32,7 +42,7 @@ pub fn read_config() -> Result<Config, String> {
     });
 }
 
-pub fn new_config(tagged_dir: String) -> Result<Config, String> {
+pub fn new(tagged_dir: String) -> Result<Config, String> {
     let config_path = config_path();
     if !Path::new(&config_path).is_file() {
         return Err("config already exists".to_owned());
@@ -50,11 +60,5 @@ pub fn new_config(tagged_dir: String) -> Result<Config, String> {
         return Err("could not create config file".to_owned());
     }
 
-    read_config()
-}
-
-pub fn config_path() -> PathBuf {
-    let mut config_dir = dirs::config_dir().unwrap();
-    config_dir.push("tagged.toml");
-    config_dir
+    read()
 }
