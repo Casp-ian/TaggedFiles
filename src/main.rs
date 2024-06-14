@@ -68,7 +68,7 @@ pub fn main() -> ExitCode {
             println!("{}", path.to_str().unwrap());
         }
         SubCommands::Addfile { file_path, option } => {
-            // TODO actually move or the file to the directory based on `option`
+            let file_path = file_path.canonicalize().unwrap();
 
             let temp = file_path.clone();
             let file_name = temp.file_name().unwrap();
@@ -104,6 +104,9 @@ pub fn main() -> ExitCode {
         }
         SubCommands::Removefile { names } => {
             for name in names {
+                let mut path = config.clone().directory;
+                path.push(name.clone());
+                dbg!(better_delete(path));
                 unwrapOrFailure!(delete_file(config.clone().directory, &name));
             }
         }
