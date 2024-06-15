@@ -10,19 +10,7 @@ use crate::cli::parse::SubCommands;
 use crate::cli::*;
 
 mod tags;
-use crate::tags::storage::*;
-
-macro_rules! unwrapOrFailure {
-    ($statement:expr) => {{
-        let s = $statement;
-        if let Err(e) = s {
-            // TODO, this currently results in errors mixed from the sqlite library, and my own written error strings
-            eprintln!("{}", e);
-            return ExitCode::FAILURE;
-        }
-        s.unwrap()
-    }};
-}
+use crate::tags::db;
 
 pub fn main() -> ExitCode {
     // create config if it doesnt exist
@@ -31,96 +19,177 @@ pub fn main() -> ExitCode {
         let mut directory_path = dirs::home_dir().unwrap();
         directory_path.push("tagged");
 
-        unwrapOrFailure!(config::new(directory_path.to_str().unwrap().to_owned()));
+        if let Err(e) = config::new(directory_path.to_str().unwrap().to_owned()) {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
     }
 
-    let config = unwrapOrFailure!(config::read());
+    let config = config::read();
+    if let Err(e) = config {
+        eprintln!("{}", e);
+        return ExitCode::FAILURE;
+    }
+    let config = config.unwrap();
 
     // create db if it doesnt exist
-    if !db_exists(config.clone().directory) {
+    if !db::db_exists(config.clone().directory) {
         eprintln!("Database does not exist. Creating it now");
         let config = config::read().unwrap();
-        unwrapOrFailure!(setup(config.directory));
-    }
-
-    match parse::parse() {
-        SubCommands::Listfiles {} => {
-            let entries = unwrapOrFailure!(list_files(config.clone().directory));
-
-            for entry in entries {
-                eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
-            }
-        }
-        SubCommands::Listtags {} => {
-            let entries = unwrapOrFailure!(list_tags(config.clone().directory));
-
-            for entry in entries {
-                eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
-            }
-        }
-        SubCommands::Getfile { tags } => {
-            let files = unwrapOrFailure!(get_files(config.clone().directory, &tags));
-
-            let file = unwrapOrFailure!(prompt::choose_file(files));
-
-            let mut path = config.directory;
-            path.push(file);
-            println!("{}", path.to_str().unwrap());
-        }
-        SubCommands::Addfile { file_path, option } => {
-            let file_path = file_path.canonicalize().unwrap();
-
-            let temp = file_path.clone();
-            let file_name = temp.file_name().unwrap();
-            let mut final_file_path = PathBuf::new();
-            final_file_path.push(config.clone().directory);
-            final_file_path.push(file_name);
-
-            match option {
-                parse::AddFileOptions::Link => {
-                    dbg!(symlink_auto(file_path, final_file_path));
-                }
-                parse::AddFileOptions::Move => {
-                    dbg!(better_copy(file_path.clone(), final_file_path));
-                    dbg!(better_delete(file_path));
-                }
-                parse::AddFileOptions::Copy => {
-                    dbg!(better_copy(file_path, final_file_path));
-                }
-            }
-
-            unwrapOrFailure!(add_file(
-                config.clone().directory,
-                &file_name.to_str().unwrap().to_owned() // TODO see if you can make this less ugly everytime
-            ));
-        }
-        SubCommands::Addtag { names } => {
-            for name in names {
-                unwrapOrFailure!(add_tag(config.clone().directory, &name));
-            }
-        }
-        SubCommands::Assign { tag, file } => {
-            unwrapOrFailure!(assign(config.clone().directory, &tag, &file));
-        }
-        SubCommands::Removefile { names } => {
-            for name in names {
-                let mut path = config.clone().directory;
-                path.push(name.clone());
-                dbg!(better_delete(path));
-                unwrapOrFailure!(delete_file(config.clone().directory, &name));
-            }
-        }
-        SubCommands::Removetag { names } => {
-            for name in names {
-                unwrapOrFailure!(delete_tag(config.clone().directory, &name));
-            }
-        }
-        SubCommands::Unassign { tag, file } => {
-            unwrapOrFailure!(unassign(config.clone().directory, &tag, &file));
+        if let Err(e) = db::setup(config.directory) {
+            eprintln!("{}", e.to_string());
+            return ExitCode::FAILURE;
         }
     }
 
-    ExitCode::SUCCESS
+    let result = match parse::parse() {
+        SubCommands::Listfiles {} => list_files(&config),
+        SubCommands::Listtags {} => list_tags(&config),
+        SubCommands::Getfile { tags } => get_file(&config, tags),
+        SubCommands::Addfile { file_path, option } => add_file(file_path, &config, option),
+        SubCommands::Addtag { names } => add_tag(names, &config),
+        SubCommands::Assign { tag, file } => assign(&config, tag, file),
+        SubCommands::Removefile { names } => remove_file(names, &config),
+        SubCommands::Removetag { names } => remove_tag(names, &config),
+        SubCommands::Unassign { tag, file } => unassign(config, tag, file),
+    };
+
+    if let Err(e) = result {
+        eprintln!("Something went wrong, {}", e);
+        return ExitCode::FAILURE;
+    } else {
+        return ExitCode::SUCCESS;
+    }
+}
+
+fn unassign(config: config::Config, tag: String, file: String) -> Result<(), String> {
+    if let Err(e) = db::unassign(config.clone().directory, &tag, &file) {
+        return Err(e.to_string());
+    }
+    Ok(())
+}
+
+fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
+    for name in names {
+        if let Err(e) = db::delete_tag(config.clone().directory, &name) {
+            return Err(e.to_string());
+        }
+    }
+    Ok(())
+}
+
+fn remove_file(names: Vec<String>, config: &config::Config) -> Result<(), String> {
+    for name in names {
+        let mut path = config.clone().directory;
+        path.push(name.clone());
+        if let Err(e) = better_delete(path) {
+            return Err(e.to_string());
+        }
+        if let Err(e) = db::delete_file(config.clone().directory, &name) {
+            return Err(e.to_string());
+        }
+    }
+    Ok(())
+}
+
+fn assign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
+    if let Err(e) = db::assign(config.clone().directory, &tag, &file) {
+        return Err(e.to_string());
+    }
+    Ok(())
+}
+
+fn add_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
+    for name in names {
+        if let Err(e) = db::add_tag(config.clone().directory, &name) {
+            return Err(e.to_string());
+        }
+    }
+    Ok(())
+}
+
+fn add_file(
+    file_path: PathBuf,
+    config: &config::Config,
+    option: parse::AddFileOptions,
+) -> Result<(), String> {
+    let file_path = file_path.canonicalize().unwrap();
+
+    let temp = file_path.clone();
+    let file_name = temp.file_name().unwrap();
+    let mut final_file_path = PathBuf::new();
+    final_file_path.push(config.clone().directory);
+    final_file_path.push(file_name);
+
+    match option {
+        parse::AddFileOptions::Link => {
+            if let Err(e) = symlink_auto(file_path, final_file_path) {
+                return Err(e.to_string());
+            }
+        }
+        parse::AddFileOptions::Move => {
+            if let Err(e) = better_copy(file_path.clone(), final_file_path) {
+                return Err(e.to_string());
+            }
+            if let Err(e) = better_delete(file_path) {
+                return Err(e.to_string());
+            }
+        }
+        parse::AddFileOptions::Copy => {
+            if let Err(e) = better_copy(file_path, final_file_path) {
+                return Err(e.to_string());
+            }
+        }
+    }
+
+    if let Err(e) = db::add_file(
+        config.clone().directory,
+        &file_name.to_str().unwrap().to_owned(), // TODO see if you can make this less ugly everytime
+    ) {
+        return Err(e.to_string());
+    }
+    Ok(())
+}
+
+fn get_file(config: &config::Config, tags: Vec<String>) -> Result<(), String> {
+    let files = db::get_files(config.clone().directory, &tags);
+    if let Err(e) = files {
+        return Err(e.to_string());
+    }
+
+    let file = prompt::choose_file(files.unwrap());
+    if let Err(e) = file {
+        return Err(e.to_string());
+    }
+
+    let mut path = config.directory.clone();
+    path.push(file.unwrap());
+    println!("{}", path.to_str().unwrap());
+    Ok(())
+}
+
+fn list_tags(config: &config::Config) -> Result<(), String> {
+    let entries = db::list_tags(config.clone().directory);
+    if let Err(e) = entries {
+        return Err(e.to_string());
+    }
+
+    for entry in entries.unwrap() {
+        eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+    }
+    Ok(())
+}
+
+fn list_files(config: &config::Config) -> Result<(), String> {
+    let entries = db::list_files(config.clone().directory);
+    if let Err(e) = entries {
+        return Err(e.to_string());
+    }
+
+    for entry in entries.unwrap() {
+        eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+    }
+    Ok(())
 }
 
 fn better_delete(dst: impl AsRef<Path>) -> io::Result<()> {
