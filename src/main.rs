@@ -163,7 +163,7 @@ fn get_file(config: &config::Config, tags: Vec<String>, multiple: bool) -> Resul
         for file in actual_files {
             let mut path = config.directory.clone();
             path.push(file);
-            print!("{} ", path.to_str().unwrap());
+            println!("{}", path.to_str().unwrap());
             // this keeps a trailing space, dont think it will be a problem
         }
         Ok(())

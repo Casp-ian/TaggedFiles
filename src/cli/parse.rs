@@ -22,6 +22,7 @@ pub enum SubCommands {
     /// search file based on tags and opens a prompt if multiple files match, prints absolute path to stdout
     Getfile {
         /// tags to search on, if none given will return all files
+        #[clap(required = true)]
         tags: Vec<String>,
 
         /// Instead of asking which specific file you want, it will just spit them all out seperated by spaces
@@ -32,6 +33,7 @@ pub enum SubCommands {
     /// add a new file to the tagged files
     Addfile {
         /// path of the file to add
+        #[clap(required = true)]
         file_path: PathBuf,
 
         /// how the file will be added to the tagged files
@@ -50,9 +52,11 @@ pub enum SubCommands {
     /// assign a tag to a file
     Assign {
         /// tag to be assigned to the file
+        #[clap(required = true)]
         tag: String,
 
         /// file that a tag should be assigned to
+        #[clap(required = true)]
         file: String,
     },
 
