@@ -45,13 +45,14 @@ pub fn main() -> ExitCode {
     let result = match parse::parse() {
         SubCommands::Listfiles {} => list_files(&config),
         SubCommands::Listtags {} => list_tags(&config),
-        SubCommands::Getfile { tags } => get_file(&config, tags),
+        SubCommands::Getfile { tags, multiple } => get_file(&config, tags, multiple),
         SubCommands::Addfile { file_path, option } => add_file(file_path, &config, option),
         SubCommands::Addtag { names } => add_tag(names, &config),
         SubCommands::Assign { tag, file } => assign(&config, tag, file),
         SubCommands::Removefile { names } => remove_file(names, &config),
         SubCommands::Removetag { names } => remove_tag(names, &config),
         SubCommands::Unassign { tag, file } => unassign(config, tag, file),
+        SubCommands::AddUnstoredFiles {} => add_unstored_files(&config),
     };
 
     if let Err(e) = result {
@@ -151,21 +152,32 @@ fn add_file(
     Ok(())
 }
 
-fn get_file(config: &config::Config, tags: Vec<String>) -> Result<(), String> {
+fn get_file(config: &config::Config, tags: Vec<String>, multiple: bool) -> Result<(), String> {
     let files = db::get_files(config.clone().directory, &tags);
     if let Err(e) = files {
         return Err(e.to_string());
     }
+    let actual_files = files.unwrap();
 
-    let file = prompt::choose_file(files.unwrap());
-    if let Err(e) = file {
-        return Err(e.to_string());
+    if multiple {
+        for file in actual_files {
+            let mut path = config.directory.clone();
+            path.push(file);
+            print!("{} ", path.to_str().unwrap());
+            // this keeps a trailing space, dont think it will be a problem
+        }
+        Ok(())
+    } else {
+        let file = prompt::choose_file(actual_files);
+        if let Err(e) = file {
+            return Err(e.to_string());
+        }
+
+        let mut path = config.directory.clone();
+        path.push(file.unwrap());
+        println!("{}", path.to_str().unwrap());
+        Ok(())
     }
-
-    let mut path = config.directory.clone();
-    path.push(file.unwrap());
-    println!("{}", path.to_str().unwrap());
-    Ok(())
 }
 
 fn list_tags(config: &config::Config) -> Result<(), String> {
@@ -190,6 +202,10 @@ fn list_files(config: &config::Config) -> Result<(), String> {
         eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
     }
     Ok(())
+}
+
+fn add_unstored_files(config: &config::Config) -> Result<(), String> {
+    return Ok(());
 }
 
 fn better_delete(dst: impl AsRef<Path>) -> io::Result<()> {

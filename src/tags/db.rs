@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 
 use rusqlite::Connection;
@@ -16,6 +17,8 @@ fn db(mut path: PathBuf) -> rusqlite::Result<Connection> {
 }
 
 pub fn setup(db_dir: PathBuf) -> rusqlite::Result<()> {
+    // TODO is good error handling nececary here?
+    let _ = fs::create_dir(&db_dir);
     let conn = db(db_dir)?;
     conn.execute(
         "

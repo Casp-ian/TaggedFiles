@@ -23,6 +23,10 @@ pub enum SubCommands {
     Getfile {
         /// tags to search on, if none given will return all files
         tags: Vec<String>,
+
+        /// Instead of asking which specific file you want, it will just spit them all out seperated by spaces
+        #[arg(long, default_value_t = false)]
+        multiple: bool,
     },
 
     /// add a new file to the tagged files
@@ -74,6 +78,8 @@ pub enum SubCommands {
         /// file that should be unnasigned to the tag
         file: String,
     },
+
+    AddUnstoredFiles,
 }
 
 #[derive(ValueEnum, Clone)]

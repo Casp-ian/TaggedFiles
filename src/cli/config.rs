@@ -44,7 +44,7 @@ pub fn read() -> Result<Config, String> {
 
 pub fn new(tagged_dir: String) -> Result<Config, String> {
     let config_path = config_path();
-    if !Path::new(&config_path).is_file() {
+    if exists() {
         return Err("config already exists".to_owned());
     }
 
