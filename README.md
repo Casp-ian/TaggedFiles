@@ -1,5 +1,10 @@
 # TaggedFiles
 
+## how to build and run locally
+
+note: if you get some error about missing `-lsqlite3`, you need to install `libsqlite3-dev`
+
+
 ## Todo
 
 - add option to remove files

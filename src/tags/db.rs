@@ -54,12 +54,12 @@ pub fn setup(db_dir: PathBuf) -> rusqlite::Result<()> {
 pub fn list_files(db_dir: PathBuf) -> rusqlite::Result<Vec<(String, String)>> {
     let conn = db(db_dir)?;
 
-    // TODO, one of these outer joins probably dont need to be
+    // it looks like there are cases where right and full outer joins are not enabled in sqlite, so avoid using those :)
     let mut statement = conn.prepare(
         "
         SELECT f.name, COALESCE(t.name, '-no tags-') FROM files f
-        FULL OUTER JOIN tags_files j on f.rowid = j.fileid
-        FULL OUTER JOIN tags t ON t.rowid = j.tagid
+        LEFT JOIN tags_files j on f.rowid = j.fileid
+        LEFT JOIN tags t ON t.rowid = j.tagid
         WHERE f.name IS NOT NULL
         ORDER BY f.name;
         ",
@@ -81,8 +81,8 @@ pub fn list_tags(db_dir: PathBuf) -> rusqlite::Result<Vec<(String, String)>> {
     let mut statement = conn.prepare(
         "
         SELECT t.name, COALESCE(f.name, '-no files-') FROM tags t
-        FULL OUTER JOIN tags_files j on t.rowid = j.tagid
-        FULL OUTER JOIN files f ON f.rowid = j.fileid
+        LEFT JOIN tags_files j on t.rowid = j.tagid
+        LEFT JOIN files f ON f.rowid = j.fileid
         WHERE t.name IS NOT NULL
         ORDER BY t.name;
         ",
