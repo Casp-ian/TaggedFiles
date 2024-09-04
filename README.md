@@ -35,17 +35,15 @@ This is solved by just calling `cd` on the result of the `getfile` option.
 This is the function i added to my fish config
 ```fish
 function tf
-    set command ~/data/Projects/cli/TaggedFiles/target/release/TaggedFiles
-
-    # If tf is called with one of these options it will call the option as a command with the result of `tf getfile`
-    set allowedCommands cd hx nautilus
-
-    # Call only if result is a file, if there is no result or get is canceled $file will be empty
-    if contains -- $argv[1] $allowedCommands
-        set file ($command getfile $argv[2..-1])
-        if test -e "$file"
-            $argv[1] $file
-        end
+    set command /mnt/18ac960b-6d14-4864-ba13-cd7adb12357e/Projects/cli/TaggedFiles/target/release/TaggedFiles
+    if [ $argv[1] = hx ]
+        hx ($command getfile $argv[2..-1])
+    else if [ $argv[1] = cd ]
+        cd ($command getfile $argv[2..-1])
+    else if [ $argv[1] = files ]
+        nautilus ($command getfile $argv[2..-1])
+    else if [ $argv[1] = echo ]
+        echo ($command getfile $argv[2..-1])
     else
         # Try to call taggedFiles with original arguments to continue as if tf is an alias
         $command $argv[1..-1]
