@@ -14,29 +14,19 @@ use crate::tags::db;
 
 pub fn main() -> ExitCode {
     // create config if it doesnt exist
-    if !config::exists() {
-        eprintln!("config file does not exist. Creating it now");
-        let mut directory_path = dirs::home_dir().unwrap();
-        directory_path.push("tagged");
-
-        if let Err(e) = config::new(directory_path.to_str().unwrap().to_owned()) {
+    let config = match config::read() {
+        Ok(config) => config,
+        Err(e) => {
             eprintln!("{}", e);
             return ExitCode::FAILURE;
         }
-    }
-
-    let config = config::read();
-    if let Err(e) = config {
-        eprintln!("{}", e);
-        return ExitCode::FAILURE;
-    }
-    let config = config.unwrap();
+    };
 
     // create db if it doesnt exist
-    if !db::db_exists(config.clone().directory) {
+    if !db::db_exists(config.clone().tag_directory) {
         eprintln!("Database does not exist. Creating it now");
         let config = config::read().unwrap();
-        if let Err(e) = db::setup(config.directory) {
+        if let Err(e) = db::setup(config.tag_directory) {
             eprintln!("{}", e.to_string());
             return ExitCode::FAILURE;
         }
@@ -52,6 +42,7 @@ pub fn main() -> ExitCode {
         SubCommands::Removefile { names } => remove_file(names, &config),
         SubCommands::Removetag { names } => remove_tag(names, &config),
         SubCommands::Unassign { tag, file } => unassign(&config, tag, file),
+        SubCommands::GetAsLinkDirectory { tags } => get_as_link_directory(&config, tags),
         _ => Err("not yet implemented".to_owned()), // TODO
     };
 
@@ -64,7 +55,7 @@ pub fn main() -> ExitCode {
 }
 
 fn unassign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
-    if let Err(e) = db::unassign(config.clone().directory, &tag, &file) {
+    if let Err(e) = db::unassign(config.clone().tag_directory, &tag, &file) {
         return Err(e.to_string());
     }
     Ok(())
@@ -72,7 +63,7 @@ fn unassign(config: &config::Config, tag: String, file: String) -> Result<(), St
 
 fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::delete_tag(config.clone().directory, &name) {
+        if let Err(e) = db::delete_tag(config.clone().tag_directory, &name) {
             return Err(e.to_string());
         }
     }
@@ -81,7 +72,7 @@ fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String>
 
 fn remove_file(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::delete_file(config.clone().directory, &name) {
+        if let Err(e) = db::delete_file(config.clone().tag_directory, &name) {
             return Err(e.to_string());
         }
     }
@@ -89,7 +80,7 @@ fn remove_file(names: Vec<String>, config: &config::Config) -> Result<(), String
 }
 
 fn assign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
-    if let Err(e) = db::assign(config.clone().directory, &tag, &file) {
+    if let Err(e) = db::assign(config.clone().tag_directory, &tag, &file) {
         return Err(e.to_string());
     }
     Ok(())
@@ -97,7 +88,7 @@ fn assign(config: &config::Config, tag: String, file: String) -> Result<(), Stri
 
 fn add_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::add_tag(config.clone().directory, &name) {
+        if let Err(e) = db::add_tag(config.clone().tag_directory, &name) {
             return Err(e.to_string());
         }
     }
@@ -120,7 +111,7 @@ fn add_file(
         }
         parse::AddFileOptions::Move => {
             let mut final_file_path = PathBuf::new();
-            final_file_path.push(config.clone().directory);
+            final_file_path.push(config.clone().tag_directory);
             final_file_path.push(file_name);
 
             if let Err(e) = better_copy(file_path.clone(), final_file_path.clone()) {
@@ -134,7 +125,7 @@ fn add_file(
     }
 
     if let Err(e) = db::add_file(
-        config.clone().directory,
+        config.clone().tag_directory,
         &file_name.to_str().unwrap().to_owned(), // TODO see if you can make this less ugly everytime
         &file_path.to_str().unwrap().to_owned(),
     ) {
@@ -153,7 +144,7 @@ fn get_file_path(
         None => vec![],
     };
 
-    let files = db::get_files(config.clone().directory, &tags);
+    let files = db::get_files(config.clone().tag_directory, &tags);
     if let Err(e) = files {
         return Err(e.to_string());
     }
@@ -182,7 +173,7 @@ fn get_file_path(
 }
 
 fn list_tags(config: &config::Config) -> Result<(), String> {
-    let entries = db::list_tags(config.clone().directory);
+    let entries = db::list_tags(config.clone().tag_directory);
     if let Err(e) = entries {
         return Err(e.to_string());
     }
@@ -194,7 +185,7 @@ fn list_tags(config: &config::Config) -> Result<(), String> {
 }
 
 fn list_files(config: &config::Config) -> Result<(), String> {
-    let entries = db::list_files(config.clone().directory);
+    let entries = db::list_files(config.clone().tag_directory);
     if let Err(e) = entries {
         return Err(e.to_string());
     }
@@ -211,6 +202,49 @@ fn list_files(config: &config::Config) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+fn get_as_link_directory(config: &config::Config, tags: Option<Vec<String>>) -> Result<(), String> {
+    let tags = match tags {
+        Some(list) => list,
+        None => vec![],
+    };
+
+    let files = db::get_files(config.clone().tag_directory, &tags);
+    if let Err(message) = files {
+        return Err(message.to_string());
+    }
+
+    // create and clear directory
+    let mut final_directory_path = PathBuf::new();
+    final_directory_path.push(config.clone().tag_directory);
+    final_directory_path.push(config.clone().link_directory_name);
+
+    if final_directory_path.exists() {
+        if let Err(message) = fs::remove_dir_all(final_directory_path.clone()) {
+            return Err(message.to_string());
+        }
+    }
+    if let Err(message) = fs::create_dir(final_directory_path) {
+        return Err(message.to_string());
+    }
+
+    // do thing
+    let files = match files {
+        Ok(files) => files,
+        Err(message) => return Err(message.to_string()),
+    };
+    for file in files {
+        let mut final_file_path = PathBuf::new();
+        final_file_path.push(config.clone().tag_directory);
+        final_file_path.push(config.clone().link_directory_name);
+        final_file_path.push(file.name);
+        if let Err(message) = symlink_auto(file.path, final_file_path) {
+            return Err(message.to_string());
+        }
+    }
+
+    return Ok(());
 }
 
 fn better_delete(dst: impl AsRef<Path>) -> io::Result<()> {
