@@ -1,8 +1,10 @@
 # TaggedFiles
 
+# this is far from done, if you want something functional, use some of the projects mentioned in idea & inspiration
+
 ## how to build and run locally
 
-note: if you get some error about missing `-lsqlite3`, you need to install `libsqlite3-dev`
+note: if you get some error about missing `lsqlite3`, you need to install `libsqlite3-dev`
 
 
 ## Todo
@@ -11,6 +13,8 @@ note: if you get some error about missing `-lsqlite3`, you need to install `libs
 - order files based on last used
 - add special tags (like: link, dir, hidden and image)
 - add subcommand to check for manually added and removed files in directory
+- add subtags with `tag/childtag+otherchildtag-excludedchildtag` syntax
+- add exclude tags `-excluded` syntax
 
 ## idea & inspiration
 Original inspiration for this project was a post about [tag based file systems](https://garrit.xyz/posts/2024-04-02-fuck-trees-use-tags).
@@ -35,7 +39,9 @@ This is solved by just calling `cd` on the result of the `getfile` option.
 This is the function i added to my fish config
 ```fish
 function tf
+    # Path to the command
     set command /mnt/18ac960b-6d14-4864-ba13-cd7adb12357e/Projects/cli/TaggedFiles/target/release/TaggedFiles
+
     if [ $argv[1] = hx ]
         hx ($command getfile $argv[2..-1])
     else if [ $argv[1] = cd ]
@@ -51,4 +57,4 @@ function tf
 end
 ```
 
-You will have to write an equivalent in bash yourself for now. I will add an example here if someone shares one with me.
+For bash you will have to write an equivalent yourself for now. I will add an example here if someone shares one with me.

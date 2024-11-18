@@ -45,14 +45,14 @@ pub fn main() -> ExitCode {
     let result = match parse::parse() {
         SubCommands::Listfiles {} => list_files(&config),
         SubCommands::Listtags {} => list_tags(&config),
-        SubCommands::Getfile { tags, multiple } => get_file(&config, tags, multiple),
+        SubCommands::Getfile { tags, multiple } => get_file_path(&config, tags, multiple),
         SubCommands::Addfile { file_path, option } => add_file(file_path, &config, option),
         SubCommands::Addtag { names } => add_tag(names, &config),
         SubCommands::Assign { tag, file } => assign(&config, tag, file),
         SubCommands::Removefile { names } => remove_file(names, &config),
         SubCommands::Removetag { names } => remove_tag(names, &config),
-        SubCommands::Unassign { tag, file } => unassign(config, tag, file),
-        SubCommands::AddUnstoredFiles {} => add_unstored_files(&config),
+        SubCommands::Unassign { tag, file } => unassign(&config, tag, file),
+        _ => Err("not yet implemented".to_owned()), // TODO
     };
 
     if let Err(e) = result {
@@ -63,7 +63,7 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn unassign(config: config::Config, tag: String, file: String) -> Result<(), String> {
+fn unassign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
     if let Err(e) = db::unassign(config.clone().directory, &tag, &file) {
         return Err(e.to_string());
     }
@@ -81,11 +81,6 @@ fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String>
 
 fn remove_file(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        let mut path = config.clone().directory;
-        path.push(name.clone());
-        if let Err(e) = better_delete(path) {
-            return Err(e.to_string());
-        }
         if let Err(e) = db::delete_file(config.clone().directory, &name) {
             return Err(e.to_string());
         }
@@ -114,30 +109,25 @@ fn add_file(
     config: &config::Config,
     option: parse::AddFileOptions,
 ) -> Result<(), String> {
-    let file_path = file_path.canonicalize().unwrap();
+    let mut file_path = file_path.canonicalize().unwrap();
 
     let temp = file_path.clone();
     let file_name = temp.file_name().unwrap();
-    let mut final_file_path = PathBuf::new();
-    final_file_path.push(config.clone().directory);
-    final_file_path.push(file_name);
 
     match option {
-        parse::AddFileOptions::Link => {
-            if let Err(e) = symlink_auto(file_path, final_file_path) {
-                return Err(e.to_string());
-            }
+        parse::AddFileOptions::None => {
+            // i think this should be empty
         }
         parse::AddFileOptions::Move => {
-            if let Err(e) = better_copy(file_path.clone(), final_file_path) {
+            let mut final_file_path = PathBuf::new();
+            final_file_path.push(config.clone().directory);
+            final_file_path.push(file_name);
+
+            if let Err(e) = better_copy(file_path.clone(), final_file_path.clone()) {
                 return Err(e.to_string());
             }
-            if let Err(e) = better_delete(file_path) {
-                return Err(e.to_string());
-            }
-        }
-        parse::AddFileOptions::Copy => {
-            if let Err(e) = better_copy(file_path, final_file_path) {
+            file_path = final_file_path; //change filepath so it actually changes in the database as this path
+            if let Err(e) = better_delete(file_path.clone()) {
                 return Err(e.to_string());
             }
         }
@@ -146,36 +136,47 @@ fn add_file(
     if let Err(e) = db::add_file(
         config.clone().directory,
         &file_name.to_str().unwrap().to_owned(), // TODO see if you can make this less ugly everytime
+        &file_path.to_str().unwrap().to_owned(),
     ) {
         return Err(e.to_string());
     }
     Ok(())
 }
 
-fn get_file(config: &config::Config, tags: Vec<String>, multiple: bool) -> Result<(), String> {
+fn get_file_path(
+    config: &config::Config,
+    tags: Option<Vec<String>>,
+    multiple: bool,
+) -> Result<(), String> {
+    let tags = match tags {
+        Some(list) => list,
+        None => vec![],
+    };
+
     let files = db::get_files(config.clone().directory, &tags);
     if let Err(e) = files {
         return Err(e.to_string());
     }
     let actual_files = files.unwrap();
 
+    if actual_files.is_empty() {
+        println!("."); // return . so  if used in a script, it doesnt cd to home
+        return Err("no files match".to_owned());
+    }
     if multiple {
         for file in actual_files {
-            let mut path = config.directory.clone();
-            path.push(file);
-            println!("{}", path.to_str().unwrap());
+            println!("{}", file.path);
             // this keeps a trailing space, dont think it will be a problem
         }
         Ok(())
     } else {
         let file = prompt::choose_file(actual_files);
         if let Err(e) = file {
+            println!("."); // return . so  if used in a script, it doesnt cd to home
             return Err(e.to_string());
         }
 
-        let mut path = config.directory.clone();
-        path.push(file.unwrap());
-        println!("{}", path.to_str().unwrap());
+        println!("{}", file.unwrap().path);
         Ok(())
     }
 }
@@ -198,14 +199,18 @@ fn list_files(config: &config::Config) -> Result<(), String> {
         return Err(e.to_string());
     }
 
+    // TODO
     for entry in entries.unwrap() {
-        eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+        eprintln!(
+            "{: >smallWidth$}{: >width$}{: >smallWidth$}",
+            entry.0,
+            entry.1,
+            entry.2,
+            width = 40,
+            smallWidth = 20,
+        );
     }
     Ok(())
-}
-
-fn add_unstored_files(config: &config::Config) -> Result<(), String> {
-    return Ok(());
 }
 
 fn better_delete(dst: impl AsRef<Path>) -> io::Result<()> {

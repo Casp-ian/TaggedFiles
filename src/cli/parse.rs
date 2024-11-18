@@ -22,8 +22,7 @@ pub enum SubCommands {
     /// search file based on tags and opens a prompt if multiple files match, prints absolute path to stdout
     Getfile {
         /// tags to search on, if none given will return all files
-        #[clap(required = true)]
-        tags: Vec<String>,
+        tags: Option<Vec<String>>,
 
         /// Instead of asking which specific file you want, it will just spit them all out seperated by spaces
         #[arg(long, default_value_t = false)]
@@ -33,11 +32,11 @@ pub enum SubCommands {
     /// add a new file to the tagged files
     Addfile {
         /// path of the file to add
-        #[clap(required = true)]
+        #[arg(required = true)]
         file_path: PathBuf,
 
         /// how the file will be added to the tagged files
-        #[arg(short, long, value_enum, default_value_t = AddFileOptions::Link)]
+        #[arg(short, long, value_enum, default_value_t = AddFileOptions::None)]
         option: AddFileOptions,
     },
 
@@ -45,32 +44,32 @@ pub enum SubCommands {
     Addtag {
         // TODO add option to add special tags here when added
         /// all tag names to add
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
     /// assign a tag to a file
     Assign {
         /// tag to be assigned to the file
-        #[clap(required = true)]
+        #[arg(required = true)]
         tag: String,
 
         /// file that a tag should be assigned to
-        #[clap(required = true)]
+        #[arg(required = true)]
         file: String,
     },
 
     /// remove a file
     Removefile {
         /// all file names to be removed
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
     /// remove a tag, also removes tag from all files
     Removetag {
         /// all tag names to be removed
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
@@ -83,20 +82,34 @@ pub enum SubCommands {
         file: String,
     },
 
-    AddUnstoredFiles,
+    // TODO
+    /// add a file to the database that is in the tagged directory
+    AddUnstoredFile,
+
+    // TODO
+    /// add a file to the tagged directory that is in the database
+    AddUnmarkedFile,
+
+    // TODO maybe relinking for if a file gets moved/renamed, tho this could be a suggestion for the addUnstore and Unmarked
+
+    // TODO this name sucks
+    /// symlink the files with these tags to a directory, handles sub tags as directories
+    GetAsLinkDirectory {
+        /// tags to search on, if none given will return all files
+        tags: Option<Vec<String>>,
+    },
 }
 
 #[derive(ValueEnum, Clone)]
 pub enum AddFileOptions {
-    Link,
+    None, // TODO
     Move,
-    Copy,
 }
 
 pub fn parse() -> SubCommands {
     let cli = Cli::parse();
 
-    // TODO check of paths are valid
+    // TODO check of paths are valid or other validation that clap cant do
 
     cli.command
 }

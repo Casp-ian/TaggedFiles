@@ -1,0 +1,24 @@
+@startuml
+!theme crt-amber
+class File {
+  String name
+  String path
+  Int lastUsed
+}
+
+File }--o{ FileTag
+
+class FileTag {
+  Int fileId
+  Int TagId
+}
+
+FileTag }o--{ Tag
+
+class Tag {
+  String name
+  Int parentTag
+}
+
+Tag |o--|| Tag
+@enduml
