@@ -4,13 +4,14 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use symlink::{self, symlink_auto};
+use tags::db::Database;
+use tags::tag_relations;
 
 mod cli;
 use crate::cli::parse::SubCommands;
 use crate::cli::*;
 
 mod tags;
-use crate::tags::db;
 
 pub fn main() -> ExitCode {
     // create config if it doesnt exist
@@ -22,26 +23,15 @@ pub fn main() -> ExitCode {
         }
     };
 
-    // create db if it doesnt exist
-    if !db::db_exists(config.clone().tag_directory) {
-        eprintln!("Database does not exist. Creating it now");
-        let config = config::read().unwrap();
-        if let Err(e) = db::setup(config.tag_directory) {
-            eprintln!("{}", e.to_string());
-            return ExitCode::FAILURE;
-        }
-    }
-
     let result = match parse::parse() {
         SubCommands::Listfiles {} => list_files(&config),
         SubCommands::Listtags {} => list_tags(&config),
         SubCommands::Getfile { tags, multiple } => get_file_path(&config, tags, multiple),
         SubCommands::Addfile { file_path, option } => add_file(file_path, &config, option),
         SubCommands::Addtag { names } => add_tag(names, &config),
-        SubCommands::Assign { tag, file } => assign(&config, tag, file),
+        SubCommands::Settags { tags, file } => set_tags(&config, tags, file),
         SubCommands::Removefile { names } => remove_file(names, &config),
         SubCommands::Removetag { names } => remove_tag(names, &config),
-        SubCommands::Unassign { tag, file } => unassign(&config, tag, file),
         SubCommands::GetAsLinkDirectory { tags } => get_as_link_directory(&config, tags),
         _ => Err("not yet implemented".to_owned()), // TODO
     };
@@ -54,16 +44,9 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn unassign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
-    if let Err(e) = db::unassign(config.clone().tag_directory, &tag, &file) {
-        return Err(e.to_string());
-    }
-    Ok(())
-}
-
 fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::delete_tag(config.clone().tag_directory, &name) {
+        if let Err(e) = Database::open(config.clone().managed_directory)?.delete_tag(name) {
             return Err(e.to_string());
         }
     }
@@ -72,15 +55,16 @@ fn remove_tag(names: Vec<String>, config: &config::Config) -> Result<(), String>
 
 fn remove_file(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::delete_file(config.clone().tag_directory, &name) {
+        if let Err(e) = Database::open(config.clone().managed_directory)?.delete_file(name) {
             return Err(e.to_string());
         }
     }
     Ok(())
 }
 
-fn assign(config: &config::Config, tag: String, file: String) -> Result<(), String> {
-    if let Err(e) = db::assign(config.clone().tag_directory, &tag, &file) {
+fn set_tags(config: &config::Config, tags: Vec<String>, file: String) -> Result<(), String> {
+    let filter = tag_relations::parse_tags(&tags)?;
+    if let Err(e) = Database::open(config.clone().managed_directory)?.set_tags(file, filter) {
         return Err(e.to_string());
     }
     Ok(())
@@ -88,7 +72,11 @@ fn assign(config: &config::Config, tag: String, file: String) -> Result<(), Stri
 
 fn add_tag(names: Vec<String>, config: &config::Config) -> Result<(), String> {
     for name in names {
-        if let Err(e) = db::add_tag(config.clone().tag_directory, &name) {
+        // TODO idk if validation should be here, should be moved to parse
+        if name.contains("/") || name.contains("+") || name.contains("-") || name.contains(" ") {
+            return Err("tag names cannot contain '/', '+', '-' or whitespace".to_owned());
+        }
+        if let Err(e) = Database::open(config.clone().managed_directory)?.add_tag(name) {
             return Err(e.to_string());
         }
     }
@@ -111,7 +99,7 @@ fn add_file(
         }
         parse::AddFileOptions::Move => {
             let mut final_file_path = PathBuf::new();
-            final_file_path.push(config.clone().tag_directory);
+            final_file_path.push(config.clone().managed_directory);
             final_file_path.push(file_name);
 
             if let Err(e) = better_copy(file_path.clone(), final_file_path.clone()) {
@@ -124,10 +112,10 @@ fn add_file(
         }
     }
 
-    if let Err(e) = db::add_file(
-        config.clone().tag_directory,
-        &file_name.to_str().unwrap().to_owned(), // TODO see if you can make this less ugly everytime
-        &file_path.to_str().unwrap().to_owned(),
+    if let Err(e) = Database::open(config.clone().managed_directory)?.add_file(
+        file_name.to_str().unwrap().to_owned(), // TODO see if you can make this less ugly everytime
+        file_path.to_str().unwrap().to_owned(),
+        0, // TODO date epoch
     ) {
         return Err(e.to_string());
     }
@@ -144,14 +132,16 @@ fn get_file_path(
         None => vec![],
     };
 
-    let files = db::get_files(config.clone().tag_directory, &tags);
+    // TODO actually use these tags
+    let filter = tag_relations::parse_tags(&tags)?;
+
+    let files = Database::open(config.clone().managed_directory)?.get_files(filter);
     if let Err(e) = files {
         return Err(e.to_string());
     }
     let actual_files = files.unwrap();
 
     if actual_files.is_empty() {
-        println!("."); // return . so  if used in a script, it doesnt cd to home
         return Err("no files match".to_owned());
     }
     if multiple {
@@ -163,7 +153,6 @@ fn get_file_path(
     } else {
         let file = prompt::choose_file(actual_files);
         if let Err(e) = file {
-            println!("."); // return . so  if used in a script, it doesnt cd to home
             return Err(e.to_string());
         }
 
@@ -173,33 +162,20 @@ fn get_file_path(
 }
 
 fn list_tags(config: &config::Config) -> Result<(), String> {
-    let entries = db::list_tags(config.clone().tag_directory);
-    if let Err(e) = entries {
-        return Err(e.to_string());
-    }
+    let entries = Database::open(config.clone().managed_directory)?.list_tags()?;
 
-    for entry in entries.unwrap() {
-        eprintln!("{: >width$}{: >width$}", entry.0, entry.1, width = 20);
+    for entry in entries {
+        eprintln!("{:?}", entry);
     }
     Ok(())
 }
 
 fn list_files(config: &config::Config) -> Result<(), String> {
-    let entries = db::list_files(config.clone().tag_directory);
-    if let Err(e) = entries {
-        return Err(e.to_string());
-    }
+    let entries = Database::open(config.clone().managed_directory)?.list_files()?;
 
     // TODO
-    for entry in entries.unwrap() {
-        eprintln!(
-            "{: >smallWidth$}{: >width$}{: >smallWidth$}",
-            entry.0,
-            entry.1,
-            entry.2,
-            width = 40,
-            smallWidth = 20,
-        );
+    for entry in entries {
+        eprintln!("{}", entry);
     }
     Ok(())
 }
@@ -210,14 +186,16 @@ fn get_as_link_directory(config: &config::Config, tags: Option<Vec<String>>) -> 
         None => vec![],
     };
 
-    let files = db::get_files(config.clone().tag_directory, &tags);
+    let filter = tag_relations::parse_tags(&tags)?;
+
+    let files = Database::open(config.clone().managed_directory)?.get_files(filter);
     if let Err(message) = files {
         return Err(message.to_string());
     }
 
     // create and clear directory
     let mut final_directory_path = PathBuf::new();
-    final_directory_path.push(config.clone().tag_directory);
+    final_directory_path.push(config.clone().managed_directory);
     final_directory_path.push(config.clone().link_directory_name);
 
     if final_directory_path.exists() {
@@ -236,7 +214,7 @@ fn get_as_link_directory(config: &config::Config, tags: Option<Vec<String>>) -> 
     };
     for file in files {
         let mut final_file_path = PathBuf::new();
-        final_file_path.push(config.clone().tag_directory);
+        final_file_path.push(config.clone().managed_directory);
         final_file_path.push(config.clone().link_directory_name);
         final_file_path.push(file.name);
         if let Err(message) = symlink_auto(file.path, final_file_path) {

@@ -3,22 +3,42 @@
 class File {
   String name
   String path
+  Int type
   Int lastUsed
 }
 
-File }--o{ FileTag
+File ||--o{ FileTag
+File ||--o{ FileChildTag
 
 class FileTag {
   Int fileId
   Int TagId
 }
+class FileChildTag {
+  Int fileId
+  Int ChildTagId
+}
 
-FileTag }o--{ Tag
+FileTag }o--|| Tag
 
 class Tag {
   String name
-  Int parentTag
+  Int type
 }
 
-Tag |o--|| Tag
+
+
+ChildTag ||--o{ FileChildTag
+
+
+Tag }|--o| ChildTag
+
+class ChildTag {
+  String name
+  Int parentTagId
+  Int type
+}
+
+
+
 @enduml

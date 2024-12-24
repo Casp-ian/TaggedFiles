@@ -1,9 +1,9 @@
 use inquire::Select;
 
-use crate::tags::db::File;
+use crate::tags::types::StoredFile;
 
-pub fn choose_file(options: Vec<File>) -> Result<File, String> {
-    let answer = Select::<File>::new("Chooses file", options).prompt();
+pub fn choose_file(options: Vec<StoredFile>) -> Result<StoredFile, String> {
+    let answer = Select::<StoredFile>::new("Chooses file", options).prompt();
 
     if let Ok(x) = answer {
         return Ok(x);

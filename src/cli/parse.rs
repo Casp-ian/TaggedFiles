@@ -48,15 +48,15 @@ pub enum SubCommands {
         names: Vec<String>,
     },
 
-    /// assign a tag to a file
-    Assign {
-        /// tag to be assigned to the file
-        #[arg(required = true)]
-        tag: String,
-
+    /// set tags for a file
+    Settags {
         /// file that a tag should be assigned to
         #[arg(required = true)]
         file: String,
+
+        /// tags to be assigned to the file
+        #[arg(required = true)]
+        tags: Vec<String>,
     },
 
     /// remove a file
@@ -71,15 +71,6 @@ pub enum SubCommands {
         /// all tag names to be removed
         #[arg(required = true)]
         names: Vec<String>,
-    },
-
-    /// unasign a tag from a file
-    Unassign {
-        /// tag that should be unnasigned to the file
-        tag: String,
-
-        /// file that should be unnasigned to the tag
-        file: String,
     },
 
     // TODO
@@ -102,7 +93,7 @@ pub enum SubCommands {
 
 #[derive(ValueEnum, Clone)]
 pub enum AddFileOptions {
-    None, // TODO
+    None,
     Move,
 }
 
@@ -110,6 +101,7 @@ pub fn parse() -> SubCommands {
     let cli = Cli::parse();
 
     // TODO check of paths are valid or other validation that clap cant do
+    // maybe this could be moved to another validate.rs file
 
     cli.command
 }

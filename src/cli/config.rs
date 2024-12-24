@@ -3,15 +3,16 @@ use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 
+// TODO move this to ron, for consistency accross the code, and because ron can make this prettier
 #[derive(Clone)]
 pub struct Config {
-    pub tag_directory: PathBuf,
+    pub managed_directory: PathBuf,
     pub link_directory_name: PathBuf,
 }
 
 #[derive(Deserialize)]
 struct WeakConfig {
-    main_directory: Option<PathBuf>,
+    managed_directory: Option<PathBuf>,
     link_directory_name: Option<PathBuf>,
 }
 
@@ -50,10 +51,10 @@ pub fn read() -> Result<Config, String> {
     let mut tag_directory = PathBuf::new();
     let mut link_directory_name = PathBuf::new();
 
-    if let Some(result) = toml.main_directory {
+    if let Some(result) = toml.managed_directory {
         tag_directory.push(result);
     } else {
-        // TODO this could break windows
+        // TODO this could break windows, idk if home dir is even wanted behaviour in windows
         tag_directory.push(dirs::home_dir().unwrap());
         tag_directory.push("tagged".to_owned());
     }
@@ -65,7 +66,7 @@ pub fn read() -> Result<Config, String> {
     }
 
     return Ok(Config {
-        tag_directory,
+        managed_directory: tag_directory,
         link_directory_name,
     });
 }
@@ -76,10 +77,13 @@ pub fn create_empty_config() -> Result<(), String> {
         return Err("config already exists".to_owned());
     }
 
-    // main_directory: Option<PathBuf>,
+    // TODO the current way of doing defaults is basically hidden to the normal user,
+    // fix this by appending the defaults for unset values to the config
+
+    // managed_directory: Option<PathBuf>,
     // link_directory_name: Option<PathBuf>,
     let default_config =
-        "# welcome to the config file :), here are the default values\n# main_directory = \"~/tagged\"\n# link_directory_name = \"!link\"".as_bytes();
+        "# welcome to the config file :), here are the default values\n# managed_directory = \"~/tagged\"\n# link_directory_name = \"!link\"".as_bytes();
 
     let file = File::create(config_path);
     if let Ok(mut new_file) = file {
