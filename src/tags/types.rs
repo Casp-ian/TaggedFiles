@@ -34,7 +34,7 @@ pub struct FileTagConnection {
     pub tag_name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TagFilter {
     pub allowed_tags: Vec<String>,
     pub denied_tags: Vec<String>,

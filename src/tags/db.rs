@@ -2,6 +2,7 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
+use std::ops::Index;
 use std::path::PathBuf;
 
 use super::types::{ChildTag, FileTagConnection, StoredFile, Tag, TagFilter};
@@ -134,6 +135,8 @@ impl Database {
             children: vec![],
         };
         self.data.tags.push(new_tag);
+
+        self.apply()?;
         return Ok(());
     }
 
@@ -150,8 +153,14 @@ impl Database {
     }
 
     /// adds allowed tags, and removes denied tags from the given file
-    pub fn set_tags(mut self, file_name: String, tag_filter: TagFilter) -> Result<(), String> {
-        // TODO check if some already exist, and if they dont, offer to create them
+    pub fn set_tags(mut self, file_name: String, mut tag_filter: TagFilter) -> Result<(), String> {
+        let mut removable_tags: Vec<String> = vec![];
+        for (i, tag) in tag_filter.allowed_tags.iter_mut().enumerate() {
+            if self.data.tags.iter().filter(|x| x.name == *tag).count() == 0 {
+                // TODO should offer to create it as well
+                eprintln!("the tag '{}' does not exist, skipping it", tag);
+            }
+        }
 
         for tag in tag_filter.allowed_tags {
             // TODO dont do duplicates
@@ -160,6 +169,7 @@ impl Database {
                 tag_name: tag,
             });
         }
+
         for tag in tag_filter.denied_tags {
             self.data
                 .connections
